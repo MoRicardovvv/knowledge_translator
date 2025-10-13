@@ -1,0 +1,14 @@
+model:
+  name: "qwen:7b"
+  temperature: 0.3
+  max_tokens: 500
+
+gepa:
+  population_size: 10
+  generations: 50
+  tournament_size: 3
+
+evaluation:
+  sql_weight: 0.33
+  owl_weight: 0.33
+  consistency_weight: 0.34
