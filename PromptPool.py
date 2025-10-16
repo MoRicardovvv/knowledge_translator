@@ -4,8 +4,11 @@ are necessary to GEPA optimization
 """
 
 import logging
+import csv
+from concurrent.futures import ThreadPoolExecutor
+import ollama
 
-class Prompt(generation: int, id: int, specialization: str, history: str, text: str, score: float):
+class Prompt:
   """
   Besides the prompt text, this class also stores some important control information
   about the prompt. The prompt history should say 'default' or specify the strategy and
@@ -16,7 +19,7 @@ class Prompt(generation: int, id: int, specialization: str, history: str, text: 
   """
   # Two types of prompts, OWL prompts and SQL prompts
 
-  def __init__(self, id: int, generation: int, history: str, text: str, score: float):
+  def __init__(self, id: int, generation: int, history: str, text: str, score: int):
     self.id = id
     self.generation = generation
     self.history = history
@@ -32,7 +35,7 @@ class PromptPool():
   prompts from a file, generate an empty pool, and populate it one by one.
   """
 
-  def __init__(self, size:int, predefined_prompts: list[str]):
+  def __init__(self, size:int, predefined_prompts: list[str], query_file: str, model: str):
     """Use this when starting GEPA system from zero
     """
     self.size = size
@@ -47,6 +50,8 @@ class PromptPool():
       new_history = "default prompt"
       new_prompt = Prompt(new_id, self.generation, new_history, predefined_prompts[i], -1)
       self.prompt_pool.append(new_prompt)
+    self.query_file = query_file
+    self.model = model
 
 
   def __init__(self, size: int, saved_prompts: list):
@@ -62,6 +67,38 @@ class PromptPool():
        are elegible to be used as base, and them give instructions on how to merge them.
     """
     pass
+
+  def query_model(prompt):
+    response = ollama.chat(
+        model=self.model,
+        messages=[{'role': 'user', 'content': prompt}]
+    )
+    return response['message']['content']
+
+
+  def evaluate(prompt: Prompt):
+    """Takes prompt text and couples it with 100 different queries specific to a selected
+       customer churn dataset. The query and generated context are then passed to the LLM
+       server. The LLM reponse must be the exact SQL query expected. For every correct answer
+       the prompt is awarded a point.
+    """
+    # create list of prompts, list of expected responses
+    prompts = []
+    expected = []
+    with open(self.query_file, 'r', newline='', encoding='utf8') as f:
+      reader = csv.reader(f, delimiter = ',')
+      for row in reader:
+        prompts.append(row[0])
+        responses.append[row[1]]
+    # connect to llama server and prompt the LLM, compare with expected response and give score
+    responses = []
+    with ThreadPoolExecutor(max_workers=8) as executor:
+      responses = list(executor.map(query_model, prompts))
+    score = 0
+    for i in range(len(responses)):
+      if responses[i] == expected[i]:
+        score += 1
+    prompt.score = score
 
 
   def tournament(self):
